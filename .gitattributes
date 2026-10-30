@@ -1,0 +1,4 @@
+externals/**/*.dll filter=lfs diff=lfs merge=lfs -text
+externals/**/*.lib filter=lfs diff=lfs merge=lfs -text
+externals/**/*.exe filter=lfs diff=lfs merge=lfs -text
+externals/**/*.obj filter=lfs diff=lfs merge=lfs -text

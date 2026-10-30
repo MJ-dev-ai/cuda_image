@@ -1,6 +1,5 @@
 # Local dependencies and generated files
 /build/
-/externals/
 /data/
 /models/
 /outputs/
@@ -35,3 +34,9 @@ CMakeUserPresets.json
 *.tmp
 .DS_Store
 Thumbs.db
+
+# Keep vendored SDK binaries; generated binaries elsewhere remain ignored
+!/externals/**/*.dll
+!/externals/**/*.lib
+!/externals/**/*.exe
+!/externals/**/*.obj
