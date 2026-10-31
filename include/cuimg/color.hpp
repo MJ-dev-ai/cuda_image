@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 
-namespace cv {
+namespace cx {
 
 struct ColorRGBA;
 
@@ -53,4 +53,4 @@ inline constexpr ColorRGBA BLANK { 0, 0, 0, 0 };         // Blank (Transparent)
 inline constexpr ColorRGBA MAGENTA { 255, 0, 255, 255 }; // Magenta
 } // namespace colors
 
-} // namespace cv
+} // namespace cx

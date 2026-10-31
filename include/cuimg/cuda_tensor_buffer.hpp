@@ -1,7 +1,7 @@
 #pragma once
 #include <cstddef>
 
-namespace cv {
+namespace cx {
 
 class CUDATensorBuffer {
 public:
@@ -23,4 +23,4 @@ private:
     std::size_t size_bytes = 0;
 };
 
-} // namespace cv
+} // namespace cx

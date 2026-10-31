@@ -34,6 +34,7 @@ CMakeUserPresets.json
 *.tmp
 .DS_Store
 Thumbs.db
+commit_message.md
 
 # Keep vendored SDK binaries; generated binaries elsewhere remain ignored
 !/externals/**/*.dll

@@ -1,10 +1,10 @@
-#include "cv/cuda_tensor_buffer.hpp"
+#include "cuimg/cuda_tensor_buffer.hpp"
 
 #include <cuda_runtime_api.h>
 #include <cstdio>
 #include <stdexcept>
 
-namespace cv {
+namespace cx {
 
 // CUDATensorBuffer
 CUDATensorBuffer::CUDATensorBuffer(std::size_t bytes) {
@@ -53,4 +53,4 @@ void* CUDATensorBuffer::data() noexcept { return device_data; }
 const void* CUDATensorBuffer::data() const noexcept { return device_data; }
 std::size_t CUDATensorBuffer::sizeBytes() const noexcept { return size_bytes; }
 
-} // namespace cv
+} // namespace cx
