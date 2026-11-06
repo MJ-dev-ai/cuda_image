@@ -8,13 +8,12 @@ namespace cx {
 void preprocessYolo(ImageBuffer& src, ImageBuffer& dst, Size model_input_size, cudaStream_t stream) {
     // Resize-only stage; letterbox and float tensor conversion are not implemented yet.
     if (&src == &dst) throw std::invalid_argument("preprocessYolo requires separate image buffers");
-    Size src_size{src.width(), src.height()};
     if (src.batch() != dst.batch() || src.format() != dst.format()) {
         throw std::invalid_argument("Source and destination batch and format must match");
     }
-    if (dst.width() != model_input_size.width || dst.height() != model_input_size.height)
-        dst = ImageBuffer(src.batch(), model_input_size.width, model_input_size.height, src.format());
-    resize(src.data(), dst.data(), src.batch(), src_size, model_input_size, src.channels(), INTER_LINEAR, stream);
+    if (!dst.data() || dst.size() != model_input_size)
+        dst = ImageBuffer(src.batch(), model_input_size, src.format());
+    resize(src.data(), dst.data(), src.batch(), src.size(), dst.size(), src.channels(), INTER_LINEAR, stream);
     
 }
 

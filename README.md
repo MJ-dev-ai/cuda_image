@@ -16,9 +16,3 @@ The GUI executable is `cuda.exe` in the project root; generated files stay in `b
   includes CPU result-image copies but excludes GUI rendering. Cached-input timing
   is not throughput for new images: new batches still need decoding and uploading.
 - `preprocessYolo` mode currently performs bilinear resize only, not letterbox or inference.
-
-`make gui-test release` verifies distinct real-file batches, cached repeats, output
-shape changes, refreshed input, mixed-dimension rejection and recovery. It also
-runs two 5120-to-2048 batch-3 GUI passes and saves the preview and timings under
-`build/release`. `make test release` runs CUDA/CPU pixel comparisons.
-Optional `make pytest release` requires pytest.

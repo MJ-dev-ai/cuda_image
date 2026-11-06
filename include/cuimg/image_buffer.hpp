@@ -6,11 +6,22 @@
 
 namespace cx {
 
+// Spatial size in width, height order.
+struct Size {
+    int width = 0;
+    int height = 0;
+
+    constexpr bool operator==(const Size& other) const noexcept { return width == other.width && height == other.height; }
+    constexpr bool operator!=(const Size& other) const noexcept { return !(*this == other); }
+};
+
 enum class PixelFormat { GRAY, RGB, RGBA, GRAY_ALPHA };
 
 // Tightly packed device-resident uint8 NHWC images of equal shape and format.
 class ImageBuffer {
 public:
+    ImageBuffer(Size size, PixelFormat format);
+    ImageBuffer(int n, Size size, PixelFormat format);
     ImageBuffer(int width, int height, PixelFormat format);
     ImageBuffer(int n, int width, int height, PixelFormat format);
 
@@ -19,6 +30,7 @@ public:
     std::uint8_t* data(int n);
     const std::uint8_t* data(int n) const;
     int batch() const noexcept;
+    Size size() const noexcept;
     std::size_t imageSizeBytes() const noexcept;
     // Total bytes for all images.
     std::size_t sizeBytes() const noexcept;
@@ -38,8 +50,7 @@ public:
 
 private:
     int batch_ = 1;
-    int width_ = 0;
-    int height_ = 0;
+    Size size_;
     int channels_ = 0;
     PixelFormat format_ = PixelFormat::RGB;
     std::size_t stride_bytes_ = 0;

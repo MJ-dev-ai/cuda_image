@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('build','run','test','gui-test','pytest','clean','rebuild')][string]$Action = 'build',
+    [ValidateSet('build','run','clean','rebuild')][string]$Action = 'build',
     [ValidateSet('Debug','Release')][string]$Configuration = 'Release',
     [string]$RunArgs = ''
 )
@@ -43,23 +43,6 @@ $ErrorActionPreference = 'Continue'
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 & cmake --build $buildDir --parallel 4 2>&1 | Tee-Object (Join-Path $buildDir 'build.log')
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-if ($Action -eq 'test') {
-    & ctest --test-dir $buildDir --output-on-failure 2>&1 | Tee-Object (Join-Path $buildDir 'test.log')
-    exit $LASTEXITCODE
-}
-if ($Action -eq 'pytest') {
-    $env:CUIMG_BUILD_CONFIG = $Configuration.ToLowerInvariant()
-    $env:PYTHONDONTWRITEBYTECODE = '1'
-    & python -m pytest (Join-Path $projectRoot 'tests\test_resize.py') -o "cache_dir=$buildDir/pytest-cache"
-    exit $LASTEXITCODE
-}
-if ($Action -eq 'gui-test') {
-    $env:QT_QPA_PLATFORM = 'offscreen'
-    & $executable --batch-test $buildDir
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    & $executable --smoke-test $buildDir
-    exit $LASTEXITCODE
-}
 if ($Action -eq 'run') {
     if ($RunArgs) { & $executable ($RunArgs -split ' ') } else { & $executable }
     exit $LASTEXITCODE

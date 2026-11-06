@@ -6,12 +6,6 @@ namespace cx {
 
 enum class TensorDataType { Float32, Float16 };
 
-// Spatial size in width, height order.
-struct Size{
-    int width = 0;
-    int height = 0;
-};
-
 // Currently uint8 NHWC bilinear resize only, not full YOLO preprocessing.
 // May replace dst allocation: finish prior dst work before calling.
 // Keep both buffers alive until stream completion; batches and formats must match.

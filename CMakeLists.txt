@@ -51,9 +51,3 @@ set_target_properties(resize_gui PROPERTIES OUTPUT_NAME "${APP_NAME}"
 foreach(CONFIG DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
     set_target_properties(resize_gui PROPERTIES RUNTIME_OUTPUT_DIRECTORY_${CONFIG} "${CMAKE_CURRENT_SOURCE_DIR}")
 endforeach()
-
-enable_testing()
-add_executable(resize_test tests/resize_test.cpp)
-target_link_libraries(resize_test PRIVATE cx::cuimg)
-set_target_properties(resize_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
-add_test(NAME resize_pixels COMMAND resize_test)

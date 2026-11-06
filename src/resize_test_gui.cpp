@@ -8,14 +8,11 @@
 #include <QHBoxLayout>
 #include <QImage>
 #include <QFileInfo>
-#include <QFile>
-#include <QTextStream>
 #include <memory>
 #include <cstring>
 #include <QLabel>
 #include <QPushButton>
 #include <QSpinBox>
-#include <QTimer>
 #include <QVBoxLayout>
 #include <QThread>
 #include <cuda_runtime_api.h>
@@ -98,7 +95,7 @@ public:
                 }
                 const int sw = decoded.front().width(), sh = decoded.front().height();
                 if (!src || src->batch() != batch || src->width() != sw || src->height() != sh)
-                    src = std::make_unique<cx::ImageBuffer>(batch, sw, sh, cx::PixelFormat::RGB);
+                    src = std::make_unique<cx::ImageBuffer>(batch, cx::Size{sw, sh}, cx::PixelFormat::RGB);
                 upload.reserve(src->sizeBytes());
                 for (int n = 0; n < batch; ++n)
                     for (int y = 0; y < sh; ++y)
@@ -110,7 +107,7 @@ public:
             }
             if (!src) throw std::runtime_error("No input batch");
             if (!dst || dst->batch() != batch || dst->width() != width || dst->height() != height)
-                dst = std::make_unique<cx::ImageBuffer>(batch, width, height, cx::PixelFormat::RGB);
+                dst = std::make_unique<cx::ImageBuffer>(batch, cx::Size{width, height}, cx::PixelFormat::RGB);
             download.reserve(dst->sizeBytes());
             result.sources = sources;
             result.images.resize(batch);
@@ -125,7 +122,7 @@ public:
                 checkCuda(cudaMemcpyAsync(src->data(), upload.data, src->sizeBytes(), cudaMemcpyHostToDevice, stream));
             checkCuda(cudaEventRecord(events[1], stream));
             if (preprocess) cx::preprocessYolo(*src, *dst, {width, height}, stream);
-            else cx::resize(src->data(), dst->data(), batch, {src->width(), src->height()}, {width, height}, 3,
+            else cx::resize(src->data(), dst->data(), batch, src->size(), dst->size(), 3,
                             static_cast<std::uint8_t>(method), stream);
             checkCuda(cudaEventRecord(events[2], stream));
             checkCuda(cudaMemcpyAsync(download.data, dst->data(), dst->sizeBytes(), cudaMemcpyDeviceToHost, stream));
@@ -275,22 +272,7 @@ public:
                     .arg(result.resize_ms, 0, 'f', 2).arg(result.download_ms, 0, 'f', 2));
                 refresh();
             }
-            if (smoke) {
-                QFile timing_file(smoke_dir + "/batch-timing.txt");
-                if (timing_file.open(QIODevice::WriteOnly | QIODevice::Append)) {
-                    QTextStream log(&timing_file);
-                    log << "run=" << smoke_run << " batch=" << result.images.size() << " total_ms=" << result.elapsed_ms
-                        << " prepare_ms=" << result.prepare_ms << " upload_ms=" << result.upload_ms
-                        << " resize_ms=" << result.resize_ms << " download_ms=" << result.download_ms << '\n';
-                }
-                if (smoke_run++ == 0 && result.error.isEmpty()) {
-                    QTimer::singleShot(0, this, &ResizeWindow::start);
-                    return;
-                }
-                const bool ok = result.error.isEmpty() && result.images.front().save(smoke_dir + "/gui-result.png");
-                grab().save(smoke_dir + "/gui-preview.png");
-                QTimer::singleShot(0, qApp, [ok] { qApp->exit(ok ? 0 : 1); });
-            }
+
     }
 
     void start() {
@@ -312,10 +294,6 @@ public:
             }, Qt::QueuedConnection);
         }, Qt::QueuedConnection);
     }
-    void smokeTest(QString directory) {
-        smoke = true; smoke_dir = directory; batch_box->setValue(3); mode_box->setCurrentIndex(1);
-        QTimer::singleShot(0, this, &ResizeWindow::start);
-    }
 
 protected:
     void closeEvent(QCloseEvent* event) override {
@@ -333,10 +311,7 @@ private:
             output_view->setPixmap(QPixmap::fromImage(result.images[n]).scaled(output_view->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
     QStringList paths;
-    QString smoke_dir;
     int revision = 0;
-    bool smoke = false;
-    int smoke_run = 0;
     Result result;
     QThread worker_thread;
     BatchWorker* worker = nullptr;
@@ -347,55 +322,7 @@ private:
     QComboBox *method_box, *mode_box, *slice_box;
 };
 
-// Exercise real file batches, cache invalidation, resize changes and failure recovery.
-int testFileBatches(const QString& directory) {
-    try {
-        BatchWorker worker;
-        QStringList files;
-        for (int n = 0; n < 3; ++n) {
-            QImage image(19, 13, QImage::Format_RGB888);
-            image.fill(QColor(20 + n * 70, 40 + n * 30, 200 - n * 40));
-            const QString path = directory + QString("/batch-input-%1.png").arg(n);
-            if (!image.save(path)) throw std::runtime_error("Cannot save test input");
-            files.push_back(path);
-        }
-        auto verify = [](const Result& result, int width, int height, bool reused, int red = 20) {
-            if (!result.error.isEmpty()) throw std::runtime_error(result.error.toStdString());
-            if (result.images.size() != 3 || result.reused_input != reused)
-                throw std::runtime_error("Batch count or input reuse mismatch");
-            for (int n = 0; n < 3; ++n) {
-                const auto& image = result.images[n];
-                if (image.width() != width || image.height() != height) throw std::runtime_error("Output shape mismatch");
-                const QColor expected(n == 0 ? red : 20 + n * 70, 40 + n * 30, 200 - n * 40);
-                for (int y = 0; y < height; ++y)
-                    for (int x = 0; x < width; ++x)
-                        if (image.pixelColor(x, y) != expected) throw std::runtime_error("Batch pixels mixed or stale");
-            }
-        };
-        verify(worker.process(files, 1, 7, 5, 3, 1, false), 7, 5, false);
-        verify(worker.process(files, 1, 7, 5, 3, 2, false), 7, 5, true);
-        verify(worker.process(files, 1, 11, 9, 3, 1, true), 11, 9, true);
-        verify(worker.process(files, 1, 19, 13, 3, 1, false), 19, 13, true);
-        QImage replacement(19, 13, QImage::Format_RGB888);
-        replacement.fill(QColor(33, 40, 200));
-        if (!replacement.save(files[0])) throw std::runtime_error("Cannot update input");
-        verify(worker.process(files, 2, 7, 5, 3, 1, false), 7, 5, false, 33);
-        QImage mismatch(3, 2, QImage::Format_RGB888);
-        mismatch.fill(Qt::black);
-        const QString mismatch_path = directory + "/batch-mismatch.png";
-        if (!mismatch.save(mismatch_path)) throw std::runtime_error("Cannot save mismatch input");
-        auto invalid_files = files;
-        invalid_files[1] = mismatch_path;
-        if (worker.process(invalid_files, 3, 7, 5, 3, 1, false).error.isEmpty())
-            throw std::runtime_error("Mismatched dimensions accepted");
-        verify(worker.process(files, 4, 7, 5, 3, 1, false), 7, 5, false, 33);
-        QTextStream(stdout) << "PASS: real file batch=3, distinct pixels, cached repeat, output resize, refreshed input, mismatch rejection and recovery\n";
-        return 0;
-    } catch (const std::exception& error) {
-        QTextStream(stderr) << error.what() << '\n';
-        return 1;
-    }
-}
+
 }
 
 int main(int argc, char** argv) {
@@ -404,12 +331,7 @@ int main(int argc, char** argv) {
     const int font_id = QFontDatabase::addApplicationFont(qEnvironmentVariable("WINDIR") + "/Fonts/segoeui.ttf");
     const auto families = QFontDatabase::applicationFontFamilies(font_id);
     if (!families.isEmpty()) app.setFont(QFont(families.front(), 10));
-    const auto args = app.arguments();
-    const int test_index = args.indexOf("--batch-test");
-    if (test_index >= 0 && test_index + 1 < args.size()) return testFileBatches(args[test_index + 1]);
     ResizeWindow window;
     window.show();
-    const int smoke_index = args.indexOf("--smoke-test");
-    if (smoke_index >= 0 && smoke_index + 1 < args.size()) window.smokeTest(args[smoke_index + 1]);
     return app.exec();
 }

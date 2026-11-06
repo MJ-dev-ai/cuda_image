@@ -5,10 +5,17 @@
 namespace cx {
 
 ImageBuffer::ImageBuffer(int width, int height, PixelFormat format)
-    : ImageBuffer(1, width, height, format) {}
+    : ImageBuffer(1, Size{width, height}, format) {}
 
 ImageBuffer::ImageBuffer(int n, int width, int height, PixelFormat format)
-    : batch_(n), width_(width), height_(height), format_(format), buffer_(0) {
+    : ImageBuffer(n, Size{width, height}, format) {}
+
+ImageBuffer::ImageBuffer(Size size, PixelFormat format)
+    : ImageBuffer(1, size, format) {}
+
+ImageBuffer::ImageBuffer(int n, Size size, PixelFormat format)
+    : batch_(n), size_(size), format_(format), buffer_(0) {
+    const int width = size.width, height = size.height;
     if (n <= 0 || width <= 0 || height <= 0)
         throw std::invalid_argument("Image batch and dimensions must be positive");
     switch (format) {
@@ -44,11 +51,12 @@ const std::uint8_t* ImageBuffer::data(int n) const {
     return data() + static_cast<std::size_t>(n) * imageSizeBytes();
 }
 int ImageBuffer::batch() const noexcept { return batch_; }
-std::size_t ImageBuffer::imageSizeBytes() const noexcept { return stride_bytes_ * height_; }
+Size ImageBuffer::size() const noexcept { return size_; }
+std::size_t ImageBuffer::imageSizeBytes() const noexcept { return stride_bytes_ * size_.height; }
 std::size_t ImageBuffer::sizeBytes() const noexcept { return buffer_.sizeBytes(); }
 std::size_t ImageBuffer::strideBytes() const noexcept { return stride_bytes_; }
-int ImageBuffer::width() const noexcept { return width_; }
-int ImageBuffer::height() const noexcept { return height_; }
+int ImageBuffer::width() const noexcept { return size_.width; }
+int ImageBuffer::height() const noexcept { return size_.height; }
 int ImageBuffer::channels() const noexcept { return channels_; }
 PixelFormat ImageBuffer::format() const noexcept { return format_; }
 
@@ -57,7 +65,7 @@ void ImageBuffer::upload(const std::uint8_t* host, std::size_t stride, cudaStrea
     if (!host || stride < stride_bytes_) throw std::invalid_argument("Invalid upload buffer or stride");
     const auto result = stride == stride_bytes_
         ? cudaMemcpyAsync(destination, host, imageSizeBytes(), cudaMemcpyHostToDevice, stream)
-        : cudaMemcpy2DAsync(destination, stride_bytes_, host, stride, stride_bytes_, height_, cudaMemcpyHostToDevice, stream);
+        : cudaMemcpy2DAsync(destination, stride_bytes_, host, stride, stride_bytes_, size_.height, cudaMemcpyHostToDevice, stream);
     if (result != cudaSuccess) throw std::runtime_error(cudaGetErrorString(result));
 }
 void ImageBuffer::download(std::uint8_t* host, std::size_t stride, cudaStream_t stream, int n) const {
@@ -65,7 +73,7 @@ void ImageBuffer::download(std::uint8_t* host, std::size_t stride, cudaStream_t 
     if (!host || stride < stride_bytes_) throw std::invalid_argument("Invalid download buffer or stride");
     const auto result = stride == stride_bytes_
         ? cudaMemcpyAsync(host, source, imageSizeBytes(), cudaMemcpyDeviceToHost, stream)
-        : cudaMemcpy2DAsync(host, stride, source, stride_bytes_, stride_bytes_, height_, cudaMemcpyDeviceToHost, stream);
+        : cudaMemcpy2DAsync(host, stride, source, stride_bytes_, stride_bytes_, size_.height, cudaMemcpyDeviceToHost, stream);
     if (result != cudaSuccess) throw std::runtime_error(cudaGetErrorString(result));
 }
 
