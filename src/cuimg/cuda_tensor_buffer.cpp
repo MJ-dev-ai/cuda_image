@@ -21,7 +21,7 @@ CUDATensorBuffer::~CUDATensorBuffer() {
         return;
     }
     const cudaError_t result = cudaFree(device_data);
-    if (result != cudaSuccess) std::fprintf(stderr, "cudaFree failed: %s\n", cudaGetErrorString(result));
+    if (result != cudaSuccess) std::fprintf(stderr, "cudaFree: %s\n", cudaGetErrorString(result));
 }
 
 CUDATensorBuffer::CUDATensorBuffer(CUDATensorBuffer&& other) noexcept {
@@ -37,7 +37,7 @@ CUDATensorBuffer& CUDATensorBuffer::operator=(CUDATensorBuffer&& other) noexcept
     if (device_data) {
         const cudaError_t result = cudaFree(device_data);
         if (result != cudaSuccess) {
-            std::fprintf(stderr, "cudaFree failed: %s\n", cudaGetErrorString(result));
+            std::fprintf(stderr, "cudaFree: %s\n", cudaGetErrorString(result));
         }
     }
     device_data = other.device_data;
